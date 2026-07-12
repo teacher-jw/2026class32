@@ -741,7 +741,7 @@
         }
     </script>
 
-    <!-- Firebase 모듈: 용량 우회를 위해 개별 Document 저장소 구조 도입 -->
+    <!-- Firebase 모듈 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getFirestore, doc, onSnapshot, setDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -758,19 +758,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // 데이터 구조 개방형 분리 (용량 무제한 우회)
         const descDocRef = doc(db, "dashboardConfig", "descriptions");
         const postsColRef = collection(db, "dashboardPosts");
 
-        // 1. 게시판 설명 실시간 감지
         onSnapshot(descDocRef, (snap) => {
             if(snap.exists()) {
                 data.descriptions = snap.data();
+            } else {
+                data.descriptions = { memory:'', work:'', reading:'' };
             }
             render();
         });
 
-        // 2. 게시글들 실시간 감지 (글이 아무리 많고 길어도 개별 로드되므로 안전함)
         onSnapshot(postsColRef, (querySnap) => {
             data.memory = [];
             data.work = [];
@@ -778,7 +777,7 @@
             
             querySnap.forEach((docSnap) => {
                 const item = docSnap.data();
-                item.docId = docSnap.id; // 파이어베이스 고유 문서 ID 연결
+                item.docId = docSnap.id;
                 if(data[item.boardType]) {
                     data[item.boardType].push(item);
                 }
@@ -787,10 +786,12 @@
         });
 
         fbBridge.saveBoardDescription = async function(type) {
-            data.descriptions[type] = document.getElementById('f-desc-content').value;
+            const newDesc = document.getElementById('f-desc-content').value;
+            data.descriptions[type] = newDesc;
             hideForm();
             try {
-                await setDoc(descDocRef, data.descriptions);
+                // 병합(merge: true) 옵션을 주어 데이터베이스가 비어있어도 안전하게 생성되도록 수정
+                await setDoc(descDocRef, data.descriptions, { merge: true });
             } catch(e) {
                 console.error(e);
                 alert("설정 저장에 실패했습니다.");
@@ -802,6 +803,7 @@
             const nowText = nowObj.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
             const nameVal = document.getElementById('f-name').value.trim();
             const titleVal = document.getElementById('f-title').value.trim();
+            const contentVal = document.getElementById('f-content') ? document.getElementById('f-content').value : '';
             
             if(!nameVal || !titleVal) { alert('이름과 제목을 모두 입력해주세요.'); return; }
 
@@ -810,22 +812,22 @@
                 id: customId,
                 boardType: type,
                 name: nameVal, title: titleVal, 
-                content: document.getElementById('f-content').value, 
+                content: contentVal, 
                 date: nowText, timestamp: nowObj.getTime(), 
-                comments: [], attachments: tempFiles 
+                comments: [], attachments: tempFiles || []
             };
+            
             if(type === 'reading') { 
-                obj.author = document.getElementById('f-author').value; 
-                obj.feel = document.getElementById('f-feel').value; 
+                obj.author = document.getElementById('f-author') ? document.getElementById('f-author').value : ''; 
+                obj.feel = document.getElementById('f-feel') ? document.getElementById('f-feel').value : ''; 
             }
             
             hideForm(); 
             try {
-                // 개별 독립 문서로 저장하여 글 하나당 1MB 제한 확보
                 await setDoc(doc(db, "dashboardPosts", customId), obj);
             } catch(e) {
                 console.error(e);
-                alert("⚠️ 저장 실패: 개별 첨부파일의 단일 용량이 너무 큽니다. 파일 크기를 줄여서 다시 올려주세요.");
+                alert("게시글 저장 중 에러가 발생했습니다. 다시 시도해 주세요.");
             }
         };
 
@@ -838,7 +840,7 @@
             targetItem.name = nameVal;
             targetItem.title = titleVal;
             targetItem.content = document.getElementById('f-content').value;
-            targetItem.attachments = tempFiles;
+            targetItem.attachments = tempFiles || [];
 
             if(type === 'reading') {
                 targetItem.author = document.getElementById('f-author').value;
