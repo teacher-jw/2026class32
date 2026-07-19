@@ -770,11 +770,6 @@
 
         const app = initializeApp(firebaseConfig);
 
-        // ★ [핵심 보안 추가]: 발급받으신 reCAPTCHA v3 사이트 키를 바로 아래 작은따옴표 안에 입력하세요 ★
-        const appCheck = initializeAppCheck(app, {
-            provider: new ReCaptchaV3Provider('6LcY_FotAAAAAJNtITfqDi9K1AfKBCAUKvs10T9_'),
-            isTokenAutoRefresh: true
-        });
 
         const db = getFirestore(app);
         
