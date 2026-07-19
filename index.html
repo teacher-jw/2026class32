@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3학년 2반 학급 보드</title>
+    <style>
+        /* 기존 게시판 스타일을 여기에 그대로 유지하세요 */
+        body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
+        .board { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input, textarea { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="board">
+        <h2>👤 학급 게시판</h2>
+        <input type="text" id="titleInput" placeholder="제목을 입력하세요 (최대 50자)">
+        <textarea id="contentInput" rows="4" placeholder="내용을 입력하세요 (최대 1000자)"></textarea>
+        <button id="saveBtn">설정 저장</button>
+    </div>
+
+    <!-- 1. Firebase 및 App Check 스크립트 로드 (모듈 방식) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 2. 내 Firebase 프로젝트 설정값 (본인의 설정값으로 대체하세요)
+        const firebaseConfig = {
+            apiKey: "AIzaSy...", 
+            authDomain: "2026class32.firebaseapp.com",
+            projectId: "2026class32",
+            storageBucket: "2026class32.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:12345:web:abcd"
+        };
+
+        // 3. Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+
+        // 4. ★ App Check 초기화 (방금 발급받은 '사이트 키'를 여기에 넣으세요) ★
+        const appCheck = initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider('여기에_reCAPTCHA_사이트_키를_넣으세요'),
+            isTokenAutoRefresh: true
+        });
+
+        // 5. 데이터베이스(Firestore) 연결
+        const db = getFirestore(app);
+
+        // 6. 저장 버튼 클릭 이벤트 및 데이터 검증
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const title = document.getElementById('titleInput').value.trim();
+            const content = document.getElementById('contentInput').value.trim();
+
+            // 프론트엔드 1차 검증 (보안 규칙 조건과 일치시킴)
+            if (!title || title.length > 50) {
+                alert('제목은 1자 이상 50자 이하로 입력해주세요.');
+                return;
+            }
+            if (!content || content.length > 1000) {
+                alert('내용은 1000자 이하로 입력해주세요.');
+                return;
+            }
+
+            try {
+                // Firestore의 'posts' 컬렉션에 데이터 저장 시도
+                await addDoc(collection(db, "posts"), {
+                    title: title,
+                    content: content,
+                    createdAt: new Date()
+                });
+                
+                alert('설정이 성공적으로 저장되었습니다!');
+                document.getElementById('titleInput').value = '';
+                document.getElementById('contentInput').value = '';
+            } catch (error) {
+                console.error("저장 오류 발생:", error);
+                alert('설정 저장에 실패했습니다. Firebase 데이터베이스 보안 규칙 및 App Check 설정을 확인해보세요.');
+            }
+        });
+    </script>
+</body>
+</html>
